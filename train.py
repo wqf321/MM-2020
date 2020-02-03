@@ -55,7 +55,8 @@ class EarlyStopping:
         '''Saves model when validation loss decrease.'''
         if self.verbose:
             print(f'Validation loss decreased ({self.val_loss_min:.6f} --> {val_loss:.6f}).  Saving model ...')
-            f.write(f'Validation loss decreased ({self.val_loss_min:.6f} --> {val_loss:.6f}).  Saving model ...')
+            with open(f'./train_log_({args.l_r:.6f}_{args.weight_decay:.6f}).txt', "w") as f:
+                 f.write(f'Validation loss decreased ({self.val_loss_min:.6f} --> {val_loss:.6f}).  Saving model ...')
         torch.save(model.state_dict(), f'({args.l_r:.6f}_{args.weight_decay:.6f})_checkpoint.pt')
         self.val_loss_min = val_loss
 
@@ -140,8 +141,7 @@ class Net:
         max_ndcg = 0.0
         step = 0
 
-        print(args.l_r)
-        print(args.weight_decay)
+       
         with open(f'./train_log_({args.l_r:.6f}_{args.weight_decay:.6f}).txt', "w") as f:
             f.write(f'./train_log_({args.l_r:.6f}_{args.weight_decay:.6f}).txt')
             f.write("\n")
@@ -175,8 +175,9 @@ class Net:
             early_stopping(precision, self.model)
 
             if early_stopping.early_stop:
-                f.write("Early stopping")
-                f.write("\n")
+                with open(f'./train_log_({args.l_r:.6f}_{args.weight_decay:.6f}).txt', "w") as f:
+                     f.write("Early stopping")
+                     f.write("\n")
                 break
 
 
@@ -214,7 +215,8 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     # sys.stdout = Logger(f'./train_log_({args.l_r:.6f}_{args.weight_decay:.6f}).txt')
-
+    print(args.l_r)
+    print(args.weight_decay)
     egcn = Net(args)
     egcn.run()    
 
