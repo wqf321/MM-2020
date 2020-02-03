@@ -166,6 +166,7 @@ class Net:
                     precision, recall, ndcg_score = self.model.accuracy(self.val_dataset, topk=10)
                     print('---------------------------------Val: {0}-th epoch {1}-th top Precition:{2:.4f} Recall:{3:.4f} NDCG:{4:.4f}---------------------------------'.format(
                         epoch, 10, precision, recall, ndcg_score))
+                    pdb.set_trace()
                     f.write('---------------------------------Val: {0}-th epoch {1}-th top Precition:{2:.4f} Recall:{3:.4f} NDCG:{4:.4f}---------------------------------'.format(
                         epoch, 10, precision, recall, ndcg_score))  # 将字符串写入文件中
                     f.write("\n")
