@@ -8,7 +8,7 @@ from torch.nn import Parameter
 from BaseModel import BaseModel
 from BaseModel import BaseModel_gcn
 import pdb
-device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 class GCN(torch.nn.Module):
     def __init__(self, features, edge_index, batch_size, num_user, num_item, dim_id, aggr_mode, concate, num_layer, has_id, dim_latent=None):
         super(GCN, self).__init__()
@@ -55,23 +55,23 @@ class GCN(torch.nn.Module):
         self.linear_layer3 = nn.Linear(self.dim_id, self.dim_id)
         nn.init.xavier_normal_(self.linear_layer3.weight)
         self.g_layer3 = nn.Linear(self.dim_id+self.dim_id, self.dim_id) if self.concate else nn.Linear(self.dim_id, self.dim_id)    
-    def forward(self,):
+    def forward(self,id_embedding):
         temp_features = self.MLP(self.features) if self.dim_latent else self.features
         x = torch.cat((self.preference, temp_features),dim=0)
         x = F.normalize(x).to(device)
 
         h = F.leaky_relu(self.conv_embed_1(x, self.edge_index))#equation 1
-        x_hat = F.leaky_relu(self.linear_layer1(x)) + id_embedding if self.has_id else F.leaky_relu(self.linear_layer1(x))#equation 5 
+        x_hat = F.leaky_relu(self.linear_layer1(x)) + id_embedding if self.has_id else F.leaky_relu(self.linear_layer1(x))#equation 5
         x = F.leaky_relu(self.g_layer1(torch.cat((h, x_hat), dim=1))) if self.concate else F.leaky_relu(self.g_layer1(h)+x_hat)
-
-        if self.num_layer > 1:
-            h = F.leaky_relu(self.conv_embed_2(x, self.edge_index))#equation 1
-            x_hat = F.leaky_relu(self.linear_layer2(x)) + id_embedding if self.has_id else F.leaky_relu(self.linear_layer2(x))#equation 5
-            x = F.leaky_relu(self.g_layer2(torch.cat((h, x_hat), dim=1))) if self.concate else F.leaky_relu(self.g_layer2(h)+x_hat)
-        if self.num_layer > 2:
-            h = F.leaky_relu(self.conv_embed_3(x, self.edge_index))#equation 1
-            x_hat = F.leaky_relu(self.linear_layer3(x)) + id_embedding if self.has_id else F.leaky_relu(self.linear_layer3(x))#equation 5
-            x = F.leaky_relu(self.g_layer3(torch.cat((h, x_hat), dim=1))) if self.concate else F.leaky_relu(self.g_layer3(h)+x_hat)
+        #
+        # if self.num_layer > 1:
+        #     h = F.leaky_relu(self.conv_embed_2(x, self.edge_index))#equation 1
+        #     x_hat = F.leaky_relu(self.linear_layer2(x)) + id_embedding if self.has_id else F.leaky_relu(self.linear_layer2(x))#equation 5
+        #     x = F.leaky_relu(self.g_layer2(torch.cat((h, x_hat), dim=1))) if self.concate else F.leaky_relu(self.g_layer2(h)+x_hat)
+        # if self.num_layer > 2:
+        #     h = F.leaky_relu(self.conv_embed_3(x, self.edge_index))#equation 1
+        #     x_hat = F.leaky_relu(self.linear_layer3(x)) + id_embedding if self.has_id else F.leaky_relu(self.linear_layer3(x))#equation 5
+        #     x = F.leaky_relu(self.g_layer3(torch.cat((h, x_hat), dim=1))) if self.concate else F.leaky_relu(self.g_layer3(h)+x_hat)
         return x
 class GCN_1(torch.nn.Module):
     def __init__(self, features, edge_index, batch_size, num_user, num_item, dim_id, aggr_mode, concate, num_layer, has_id, dim_latent=None):
@@ -94,36 +94,36 @@ class GCN_1(torch.nn.Module):
             self.MLP = nn.Linear(self.dim_feat, self.dim_latent)
             self.conv_embed_1 = BaseModel(self.dim_latent, self.dim_latent, aggr=self.aggr_mode)
             # nn.init.xavier_normal_(self.conv_embed_1.weight)
-            self.linear_layer1 = nn.Linear(self.dim_latent, self.dim_id)
-            nn.init.xavier_normal_(self.linear_layer1.weight)
-            self.g_layer1 = nn.Linear(self.dim_latent+self.dim_id, self.dim_id) if self.concate else nn.Linear(self.dim_latent, self.dim_id)    
-            nn.init.xavier_normal_(self.g_layer1.weight) 
+            # self.linear_layer1 = nn.Linear(self.dim_latent, self.dim_id)
+            # nn.init.xavier_normal_(self.linear_layer1.weight)
+            # self.g_layer1 = nn.Linear(self.dim_latent+self.dim_id, self.dim_id) if self.concate else nn.Linear(self.dim_latent, self.dim_id)
+            # nn.init.xavier_normal_(self.g_layer1.weight)
 
         else:
             self.preference = nn.init.xavier_normal_(torch.rand((num_user, self.dim_feat), requires_grad=True)).to(device)
             self.conv_embed_1 = BaseModel(self.dim_feat, self.dim_feat, aggr=self.aggr_mode)
             # nn.init.xavier_normal_(self.conv_embed_1.weight)
-            self.linear_layer1 = nn.Linear(self.dim_feat, self.dim_id)
-            nn.init.xavier_normal_(self.linear_layer1.weight)
-            self.g_layer1 = nn.Linear(self.dim_feat+self.dim_id, self.dim_id) if self.concate else nn.Linear(self.dim_feat, self.dim_id)     
-            nn.init.xavier_normal_(self.g_layer1.weight)              
+            # self.linear_layer1 = nn.Linear(self.dim_feat, self.dim_id)
+            # nn.init.xavier_normal_(self.linear_layer1.weight)
+            # self.g_layer1 = nn.Linear(self.dim_feat+self.dim_id, self.dim_id) if self.concate else nn.Linear(self.dim_feat, self.dim_id)
+            # nn.init.xavier_normal_(self.g_layer1.weight)
           
-        self.conv_embed_2 = BaseModel(self.dim_id, self.dim_id, aggr=self.aggr_mode)
-        # nn.init.xavier_normal_(self.conv_embed_2.weight)
-        self.linear_layer2 = nn.Linear(self.dim_id, self.dim_id)
-        nn.init.xavier_normal_(self.linear_layer2.weight)
-        self.g_layer2 = nn.Linear(self.dim_id+self.dim_id, self.dim_id) if self.concate else nn.Linear(self.dim_id, self.dim_id)    
-
-        self.conv_embed_3 = BaseModel(self.dim_id, self.dim_id, aggr=self.aggr_mode)
-        # nn.init.xavier_normal_(self.conv_embed_3.weight)
-        self.linear_layer3 = nn.Linear(self.dim_id, self.dim_id)
-        nn.init.xavier_normal_(self.linear_layer3.weight)
-        self.g_layer3 = nn.Linear(self.dim_id+self.dim_id, self.dim_id) if self.concate else nn.Linear(self.dim_id, self.dim_id)    
+        # self.conv_embed_2 = BaseModel(self.dim_id, self.dim_id, aggr=self.aggr_mode)
+        # # nn.init.xavier_normal_(self.conv_embed_2.weight)
+        # self.linear_layer2 = nn.Linear(self.dim_id, self.dim_id)
+        # nn.init.xavier_normal_(self.linear_layer2.weight)
+        # self.g_layer2 = nn.Linear(self.dim_id+self.dim_id, self.dim_id) if self.concate else nn.Linear(self.dim_id, self.dim_id)
+        #
+        # self.conv_embed_3 = BaseModel(self.dim_id, self.dim_id, aggr=self.aggr_mode)
+        # # nn.init.xavier_normal_(self.conv_embed_3.weight)
+        # self.linear_layer3 = nn.Linear(self.dim_id, self.dim_id)
+        # nn.init.xavier_normal_(self.linear_layer3.weight)
+        # self.g_layer3 = nn.Linear(self.dim_id+self.dim_id, self.dim_id) if self.concate else nn.Linear(self.dim_id, self.dim_id)
 
     def forward(self,):
         temp_features = self.MLP(self.features) if self.dim_latent else self.features
         x = torch.cat((self.preference, temp_features),dim=0)
-        x = F.normalize(x).to(device)
+        # x = F.normalize(x).to(device)
         h = self.conv_embed_1(x, self.edge_index)#equation 1
         # x_hat = F.leaky_relu(self.linear_layer1(x)) + id_embedding if self.has_id else F.leaky_relu(self.linear_layer1(x))#equation 5
         # x = F.leaky_relu(self.g_layer1(torch.cat((h, x_hat), dim=1))) if self.concate else F.leaky_relu(self.g_layer1(h)+x_hat)
@@ -146,17 +146,25 @@ class User_Graph(torch.nn.Module):
         self.aggr_mode = aggr_mode
         self.base_gcn = BaseModel_gcn(64,64,self.aggr_mode)
     def forward(self,features):
-        u_pre = F.leaky_relu(self.base_gcn(features,self.edge_index))
+        u_pre = self.base_gcn(features,self.edge_index)
         return u_pre
 
 class MMGCN(torch.nn.Module):
-    def __init__(self, features, edge_index,user_index_5, batch_size, num_user, num_item, aggr_mode, concate, num_layer, has_id, dim_x):
+    def __init__(self, features, edge_index,user_index_5, batch_size, num_user, num_item, aggr_mode, concate, num_layer, has_id, dim_x,reg_weight,pos_row, pos_col):
         super(MMGCN, self).__init__()
         self.batch_size = batch_size
         self.num_user = num_user
         self.num_item = num_item
         self.aggr_mode = aggr_mode
         self.concate = concate
+        self.reg_weight = reg_weight
+
+        self.pos_row = torch.LongTensor(pos_row)
+        self.pos_col = torch.LongTensor(pos_col)-num_user
+
+        self.v_rep = None
+        self.a_rep = None
+        self.t_rep = None
 
         self.edge_index = torch.tensor(edge_index).t().contiguous().to(device)
         self.edge_index = torch.cat((self.edge_index, self.edge_index[[1,0]]), dim=1)
@@ -176,18 +184,17 @@ class MMGCN(torch.nn.Module):
 
 
     def forward(self, user_nodes, pos_item_nodes, neg_item_nodes):
-        v_rep = self.v_gcn()
-        a_rep = self.a_gcn()
-        t_rep = self.t_gcn()
-        representation = (v_rep+a_rep+t_rep)/3
-        pos_item_tensor = representation[pos_item_nodes]
-        neg_item_tensor = representation[neg_item_nodes]
-
+        self.v_rep = self.v_gcn()
+        self.a_rep = self.a_gcn()
+        self.t_rep = self.t_gcn()
+        representation = (self.v_rep+self.a_rep+self.t_rep)/3
+        item_rep = representation[self.num_user:]
         user_rep = self.user_graph(representation[:self.num_user])
-
+        # self.result_embed = torch.cat((user_rep,item_rep),dim=0)
         self.result_embed = representation
-        user_tensor = user_rep[user_nodes]
-
+        user_tensor = self.result_embed[user_nodes]
+        pos_item_tensor = self.result_embed[pos_item_nodes]
+        neg_item_tensor = self.result_embed[neg_item_nodes]
         pos_scores = torch.sum(user_tensor*pos_item_tensor, dim=1)
         neg_scores = torch.sum(user_tensor*neg_item_tensor, dim=1)
         return pos_scores, neg_scores
@@ -196,8 +203,13 @@ class MMGCN(torch.nn.Module):
     def loss(self, data):
         user, pos_items, neg_items = data
         pos_scores, neg_scores = self.forward(user.to(device), pos_items.to(device), neg_items.to(device))
-        loss_value = -torch.sum(torch.log2(torch.sigmoid(pos_scores - neg_scores)))
-        return loss_value
+        loss_value = -torch.mean(torch.log2(torch.sigmoid(pos_scores - neg_scores)))
+        # reg_embedding_loss = (self.result_embed[user] ** 2).mean()
+        reg_embedding_loss_v = (self.v_rep[user.to(device)] ** 2).mean()
+        reg_embedding_loss_a = (self.a_rep[user.to(device)] ** 2).mean()
+        reg_embedding_loss_t = (self.t_rep[user.to(device)] ** 2).mean()
+        reg_loss = self.reg_weight * (reg_embedding_loss_v+reg_embedding_loss_a+reg_embedding_loss_t)
+        return loss_value+reg_loss,reg_loss
 
 
     def accuracy(self, dataset, topk=10, neg_num=1000):
@@ -246,3 +258,39 @@ class MMGCN(torch.nn.Module):
 
         return sum_pre/sum_item, sum_recall/sum_item, sum_ndcg/sum_item
 
+    def full_accuracy(self, val_data, topk=10):
+        user_tensor = self.result_embed[:self.num_user]
+        item_tensor = self.result_embed[self.num_user:]
+
+        score_matrix = torch.matmul(user_tensor, item_tensor.t())
+        score_matrix[self.pos_row, self.pos_col] = -1e8
+        precision = recall = ndcg = 0.0
+
+        _, index_of_rank_list = torch.topk(score_matrix, topk)
+        index_of_rank_list = index_of_rank_list.cpu()+self.num_user
+
+        length = len(val_data)
+
+        val_pbar = tqdm(total=length)
+        log = math.log
+
+        for data in val_data:
+            val_pbar.update(1)
+            user = data[0]
+            pos_items = set(data[1:])
+            num_pos = len(pos_items)
+            items_list = index_of_rank_list[user].tolist()
+            items = set(items_list)
+
+            num_hit = len(pos_items.intersection(items))
+
+            precision += float(num_hit / topk)
+            recall += float(num_hit / num_pos)
+            ndcg_score = 0.0
+            for label_pos in pos_items:
+                if label_pos in items:
+                    index = items_list.index(label_pos)
+                    ndcg_score += log(2) / log(index + 2)
+            ndcg += ndcg_score/num_pos
+        val_pbar.close()
+        return precision/length, recall/length, ndcg/length
