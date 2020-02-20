@@ -4,6 +4,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch_geometric.utils import dropout_adj
 from torch.nn import Parameter
 from BaseModel import BaseModel
 from BaseModel import BaseModel_gcn
