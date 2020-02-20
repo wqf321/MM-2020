@@ -74,7 +74,7 @@ class GCN(torch.nn.Module):
         #     x = F.leaky_relu(self.g_layer3(torch.cat((h, x_hat), dim=1))) if self.concate else F.leaky_relu(self.g_layer3(h)+x_hat)
         return h
 class GCN_1(torch.nn.Module):
-    def __init__(self, features, batch_size, num_user, num_item, dim_id, aggr_mode, concate, num_layer, has_id, dropout,dim_latent=None):
+    def __init__(self, features, edge_index, batch_size, num_user, num_item, dim_id, aggr_mode, concate, num_layer, has_id, dropout,dim_latent=None):
         super(GCN_1, self).__init__()
         self.batch_size = batch_size
         self.num_user = num_user
@@ -82,6 +82,7 @@ class GCN_1(torch.nn.Module):
         self.dim_id = dim_id
         self.dim_feat = features.size(1)
         self.dim_latent = dim_latent
+        self.edge_index = edge_index
         self.features = features
         self.aggr_mode = aggr_mode
         self.concate = concate
@@ -120,11 +121,11 @@ class GCN_1(torch.nn.Module):
         # nn.init.xavier_normal_(self.linear_layer3.weight)
         # self.g_layer3 = nn.Linear(self.dim_id+self.dim_id, self.dim_id) if self.concate else nn.Linear(self.dim_id, self.dim_id)
 
-    def forward(self,edge_index):
+    def forward(self,):
         temp_features = self.MLP(self.features) if self.dim_latent else self.features
         x = torch.cat((self.preference, temp_features),dim=0)
         x = F.normalize(x).to(device)
-        h = self.conv_embed_1(x,edge_index)#equation 1
+        h = self.conv_embed_1(x, self.edge_index)#equation 1
         # h = self.conv_embed_1(h, self.edge_index)
         x_hat = h+x
         # x_hat = F.leaky_relu(self.linear_layer1(x)) + id_embedding if self.has_id else F.leaky_relu(self.linear_layer1(x))#equation 5
@@ -172,18 +173,17 @@ class MMGCN(torch.nn.Module):
         self.t_preference = None
 
         self.edge_index = torch.tensor(edge_index).t().contiguous().to(device)
-        # self.edge_index, _ = dropout_adj(edge_index, edge_attr=None, p=self.dropout)
-        # self.edge_index = torch.cat((self.edge_index, self.edge_index[[1,0]]), dim=1)
-
+        self.edge_index, _ = dropout_adj(edge_index, edge_attr=None, p=self.dropout)
+        self.edge_index = torch.cat((self.edge_index, self.edge_index[[1,0]]), dim=1)
         self.user_index_5 = torch.tensor(user_index_5).contiguous().to(device)
         v_feat, a_feat, t_feat = features
         self.v_feat = torch.tensor(v_feat, dtype=torch.float).to(device)
         self.a_feat = torch.tensor(a_feat, dtype=torch.float).to(device)
         self.t_feat = torch.tensor(t_feat, dtype=torch.float).to(device)
 
-        self.v_gcn = GCN_1(self.v_feat, batch_size, num_user, num_item, dim_x, self.aggr_mode, self.concate, num_layer=num_layer, has_id=has_id,dropout = self.dropout, dim_latent=64)#256)
-        self.a_gcn = GCN_1(self.a_feat, batch_size, num_user, num_item, dim_x, self.aggr_mode, self.concate, num_layer=num_layer, has_id=has_id,dropout = self.dropout, dim_latent=64)
-        self.t_gcn = GCN_1(self.t_feat, batch_size, num_user, num_item, dim_x, self.aggr_mode, self.concate, num_layer=num_layer, has_id=has_id,dropout = self.dropout, dim_latent=64)
+        self.v_gcn = GCN_1(self.v_feat, self.edge_index, batch_size, num_user, num_item, dim_x, self.aggr_mode, self.concate, num_layer=num_layer, has_id=has_id,dropout = self.dropout, dim_latent=64)#256)
+        self.a_gcn = GCN_1(self.a_feat, self.edge_index, batch_size, num_user, num_item, dim_x, self.aggr_mode, self.concate, num_layer=num_layer, has_id=has_id,dropout = self.dropout, dim_latent=64)
+        self.t_gcn = GCN_1(self.t_feat, self.edge_index, batch_size, num_user, num_item, dim_x, self.aggr_mode, self.concate, num_layer=num_layer, has_id=has_id,dropout = self.dropout, dim_latent=64)
         self.user_graph = User_Graph(self.user_index_5,num_user,'add')
 
         self.id_embedding = nn.init.xavier_normal_(torch.rand((num_user+num_item, dim_x), requires_grad=True)).to(device)
@@ -191,11 +191,9 @@ class MMGCN(torch.nn.Module):
 
 
     def forward(self, user_nodes, pos_item_nodes, neg_item_nodes):
-        self.edge_index, _ = dropout_adj(self.edge_index, edge_attr=None, p=self.dropout)
-        self.edge_index = torch.cat((self.edge_index, self.edge_index[[1, 0]]), dim=1)
-        self.v_rep,self.v_preference = self.v_gcn(self.edge_index)
-        self.a_rep,self.a_preference = self.a_gcn(self.edge_index)
-        self.t_rep,self.t_preference = self.t_gcn(self.edge_index)
+        self.v_rep,self.v_preference = self.v_gcn()
+        self.a_rep,self.a_preference = self.a_gcn()
+        self.t_rep,self.t_preference = self.t_gcn()
         # representation = (self.v_rep+self.a_rep+self.t_rep)/3
         representation = self.v_rep+self.a_rep+self.t_rep
         item_rep = representation[self.num_user:]
