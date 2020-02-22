@@ -171,7 +171,8 @@ class MMGCN(torch.nn.Module):
         self.v_preference = None
         self.a_preference = None
         self.t_preference = None
-
+        self.dim_latent = 64
+        
         self.edge_index = torch.tensor(edge_index).t().contiguous().to(device)
         # self.edge_index, _ = dropout_adj(edge_index, edge_attr=None, p=self.dropout)
         # self.edge_index = torch.cat((self.edge_index, self.edge_index[[1,0]]), dim=1)
@@ -181,6 +182,7 @@ class MMGCN(torch.nn.Module):
         self.a_feat = torch.tensor(a_feat, dtype=torch.float).to(device)
         self.t_feat = torch.tensor(t_feat, dtype=torch.float).to(device)
 
+        self.MLP = nn.Linear(self.dim_latent * 3, self.dim_latent)
         self.v_gcn = GCN_1(self.v_feat, batch_size, num_user, num_item, dim_x, self.aggr_mode, self.concate, num_layer=num_layer, has_id=has_id,dropout = self.dropout, dim_latent=64)#256)
         self.a_gcn = GCN_1(self.a_feat, batch_size, num_user, num_item, dim_x, self.aggr_mode, self.concate, num_layer=num_layer, has_id=has_id,dropout = self.dropout, dim_latent=64)
         self.t_gcn = GCN_1(self.t_feat, batch_size, num_user, num_item, dim_x, self.aggr_mode, self.concate, num_layer=num_layer, has_id=has_id,dropout = self.dropout, dim_latent=64)
