@@ -9,9 +9,13 @@ from torch.nn import Parameter
 from BaseModel import BaseModel
 from BaseModel import BaseModel_gcn
 import pdb
+
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+
 class GCN(torch.nn.Module):
-    def __init__(self, features, edge_index, batch_size, num_user, num_item, dim_id, aggr_mode, concate, num_layer, has_id, dim_latent=None):
+    def __init__(self, features, edge_index, batch_size, num_user, num_item, dim_id, aggr_mode, concate, num_layer,
+                 has_id, dim_latent=None):
         super(GCN, self).__init__()
         self.batch_size = batch_size
         self.num_user = num_user
@@ -27,41 +31,48 @@ class GCN(torch.nn.Module):
         self.has_id = has_id
 
         if self.dim_latent:
-            self.preference = nn.init.xavier_normal_(torch.rand((num_user, self.dim_latent), requires_grad=True)).to(device)
+            self.preference = nn.init.xavier_normal_(torch.rand((num_user, self.dim_latent), requires_grad=True)).to(
+                device)
             self.MLP = nn.Linear(self.dim_feat, self.dim_latent)
             self.conv_embed_1 = BaseModel(self.dim_latent, self.dim_latent, aggr=self.aggr_mode)
             # nn.init.xavier_normal_(self.conv_embed_1.weight)
             self.linear_layer1 = nn.Linear(self.dim_latent, self.dim_id)
             nn.init.xavier_normal_(self.linear_layer1.weight)
-            self.g_layer1 = nn.Linear(self.dim_latent+self.dim_id, self.dim_id) if self.concate else nn.Linear(self.dim_latent, self.dim_id)    
-            nn.init.xavier_normal_(self.g_layer1.weight) 
+            self.g_layer1 = nn.Linear(self.dim_latent + self.dim_id, self.dim_id) if self.concate else nn.Linear(
+                self.dim_latent, self.dim_id)
+            nn.init.xavier_normal_(self.g_layer1.weight)
 
         else:
-            self.preference = nn.init.xavier_normal_(torch.rand((num_user, self.dim_feat), requires_grad=True)).to(device)
+            self.preference = nn.init.xavier_normal_(torch.rand((num_user, self.dim_feat), requires_grad=True)).to(
+                device)
             self.conv_embed_1 = BaseModel(self.dim_feat, self.dim_feat, aggr=self.aggr_mode)
             nn.init.xavier_normal_(self.conv_embed_1.weight)
             self.linear_layer1 = nn.Linear(self.dim_feat, self.dim_id)
             nn.init.xavier_normal_(self.linear_layer1.weight)
-            self.g_layer1 = nn.Linear(self.dim_feat+self.dim_id, self.dim_id) if self.concate else nn.Linear(self.dim_feat, self.dim_id)     
-            nn.init.xavier_normal_(self.g_layer1.weight)              
-          
+            self.g_layer1 = nn.Linear(self.dim_feat + self.dim_id, self.dim_id) if self.concate else nn.Linear(
+                self.dim_feat, self.dim_id)
+            nn.init.xavier_normal_(self.g_layer1.weight)
+
         self.conv_embed_2 = BaseModel(self.dim_id, self.dim_id, aggr=self.aggr_mode)
         # nn.init.xavier_normal_(self.conv_embed_2.weight)
         self.linear_layer2 = nn.Linear(self.dim_id, self.dim_id)
         nn.init.xavier_normal_(self.linear_layer2.weight)
-        self.g_layer2 = nn.Linear(self.dim_id+self.dim_id, self.dim_id) if self.concate else nn.Linear(self.dim_id, self.dim_id)    
+        self.g_layer2 = nn.Linear(self.dim_id + self.dim_id, self.dim_id) if self.concate else nn.Linear(self.dim_id,
+                                                                                                         self.dim_id)
 
         self.conv_embed_3 = BaseModel(self.dim_id, self.dim_id, aggr=self.aggr_mode)
         # nn.init.xavier_normal_(self.conv_embed_3.weight)
         self.linear_layer3 = nn.Linear(self.dim_id, self.dim_id)
         nn.init.xavier_normal_(self.linear_layer3.weight)
-        self.g_layer3 = nn.Linear(self.dim_id+self.dim_id, self.dim_id) if self.concate else nn.Linear(self.dim_id, self.dim_id)    
-    def forward(self,id_embedding):
+        self.g_layer3 = nn.Linear(self.dim_id + self.dim_id, self.dim_id) if self.concate else nn.Linear(self.dim_id,
+                                                                                                         self.dim_id)
+
+    def forward(self, id_embedding):
         temp_features = self.MLP(self.features) if self.dim_latent else self.features
-        x = torch.cat((self.preference, temp_features),dim=0)
+        x = torch.cat((self.preference, temp_features), dim=0)
         x = F.normalize(x).to(device)
 
-        h = F.leaky_relu(self.conv_embed_1(x, self.edge_index))#equation 1
+        h = F.leaky_relu(self.conv_embed_1(x, self.edge_index))  # equation 1
         # x_hat = F.leaky_relu(self.linear_layer1(x)) + id_embedding if self.has_id else F.leaky_relu(self.linear_layer1(x))#equation 5
         # x = F.leaky_relu(self.g_layer1(torch.cat((h, x_hat), dim=1))) if self.concate else F.leaky_relu(self.g_layer1(h)+x_hat)
         #
@@ -74,8 +85,11 @@ class GCN(torch.nn.Module):
         #     x_hat = F.leaky_relu(self.linear_layer3(x)) + id_embedding if self.has_id else F.leaky_relu(self.linear_layer3(x))#equation 5
         #     x = F.leaky_relu(self.g_layer3(torch.cat((h, x_hat), dim=1))) if self.concate else F.leaky_relu(self.g_layer3(h)+x_hat)
         return h
+
+
 class GCN_1(torch.nn.Module):
-    def __init__(self, features, batch_size, num_user, num_item, dim_id, aggr_mode, concate, num_layer, has_id, dropout,dim_latent=None):
+    def __init__(self, features, batch_size, num_user, num_item, dim_id, aggr_mode, concate, num_layer, has_id, dropout,
+                 dim_latent=None):
         super(GCN_1, self).__init__()
         self.batch_size = batch_size
         self.num_user = num_user
@@ -91,9 +105,10 @@ class GCN_1(torch.nn.Module):
         self.dropout = dropout
 
         if self.dim_latent:
-            self.preference = nn.Parameter(nn.init.xavier_normal_(torch.rand((num_user, self.dim_latent), requires_grad=True)).to(device))
+            self.preference = nn.Parameter(
+                nn.init.xavier_normal_(torch.rand((num_user, self.dim_latent), requires_grad=True)).to(device))
             self.MLP = nn.Linear(self.dim_feat, self.dim_latent)
-            self.conv_embed_1 = BaseModel(self.dim_latent, self.dim_latent,self.dropout,aggr=self.aggr_mode)
+            self.conv_embed_1 = BaseModel(self.dim_latent, self.dim_latent, self.dropout, aggr=self.aggr_mode)
             # nn.init.xavier_normal_(self.conv_embed_1.weight)
             # self.linear_layer1 = nn.Linear(self.dim_latent, self.dim_id)
             # nn.init.xavier_normal_(self.linear_layer1.weight)
@@ -101,14 +116,15 @@ class GCN_1(torch.nn.Module):
             # nn.init.xavier_normal_(self.g_layer1.weight)
 
         else:
-            self.preference = nn.Parameter(nn.init.xavier_normal_(torch.rand((num_user, self.dim_feat), requires_grad=True)).to(device))
+            self.preference = nn.Parameter(
+                nn.init.xavier_normal_(torch.rand((num_user, self.dim_feat), requires_grad=True)).to(device))
             self.conv_embed_1 = BaseModel(self.dim_feat, self.dim_feat, aggr=self.aggr_mode)
             # nn.init.xavier_normal_(self.conv_embed_1.weight)
             # self.linear_layer1 = nn.Linear(self.dim_feat, self.dim_id)
             # nn.init.xavier_normal_(self.linear_layer1.weight)
             # self.g_layer1 = nn.Linear(self.dim_feat+self.dim_id, self.dim_id) if self.concate else nn.Linear(self.dim_feat, self.dim_id)
             # nn.init.xavier_normal_(self.g_layer1.weight)
-          
+
         # self.conv_embed_2 = BaseModel(self.dim_id, self.dim_id, aggr=self.aggr_mode)
         # # nn.init.xavier_normal_(self.conv_embed_2.weight)
         # self.linear_layer2 = nn.Linear(self.dim_id, self.dim_id)
@@ -121,13 +137,14 @@ class GCN_1(torch.nn.Module):
         # nn.init.xavier_normal_(self.linear_layer3.weight)
         # self.g_layer3 = nn.Linear(self.dim_id+self.dim_id, self.dim_id) if self.concate else nn.Linear(self.dim_id, self.dim_id)
 
-    def forward(self,edge_index):
+    def forward(self, edge_index):
         temp_features = self.MLP(self.features) if self.dim_latent else self.features
-        x = torch.cat((self.preference, temp_features),dim=0)
+        x = torch.cat((self.preference, temp_features), dim=0)
         x = F.normalize(x).to(device)
-        h = self.conv_embed_1(x, edge_index)#equation 1
-        # h = self.conv_embed_1(h, self.edge_index)
-        x_hat = h+x
+        h = self.conv_embed_1(x, edge_index)  # equation 1
+        h_1 = self.conv_embed_1(h, edge_index)
+
+        x_hat =h_1+ h + x
         # x_hat = F.leaky_relu(self.linear_layer1(x)) + id_embedding if self.has_id else F.leaky_relu(self.linear_layer1(x))#equation 5
         # x = F.leaky_relu(self.g_layer1(torch.cat((h, x_hat), dim=1))) if self.concate else F.leaky_relu(self.g_layer1(h)+x_hat)
         #
@@ -139,21 +156,25 @@ class GCN_1(torch.nn.Module):
         #     h = F.leaky_relu(self.conv_embed_3(x, self.edge_index))#equation 1
         #     x_hat = F.leaky_relu(self.linear_layer3(x)) + id_embedding if self.has_id else F.leaky_relu(self.linear_layer3(x))#equation 5
         #     x = F.leaky_relu(self.g_layer3(torch.cat((h, x_hat), dim=1))) if self.concate else F.leaky_relu(self.g_layer3(h)+x_hat)
-        return x_hat,self.preference
+        return x_hat, self.preference
+
 
 class User_Graph(torch.nn.Module):
-    def __init__(self,edge_index,num_user,aggr_mode):
-        super(User_Graph,self).__init__()
+    def __init__(self, edge_index, num_user, aggr_mode):
+        super(User_Graph, self).__init__()
         self.edge_index = edge_index
         self.num_user = num_user
         self.aggr_mode = aggr_mode
-        self.base_gcn = BaseModel_gcn(64,64,self.aggr_mode)
-    def forward(self,features):
-        u_pre = self.base_gcn(features,self.edge_index)
+        self.base_gcn = BaseModel_gcn(64, 64, self.aggr_mode)
+
+    def forward(self, features):
+        u_pre = self.base_gcn(features, self.edge_index)
         return u_pre
 
+
 class MMGCN(torch.nn.Module):
-    def __init__(self, features, edge_index,user_index_5, batch_size, num_user, num_item, aggr_mode, concate, num_layer, has_id, dim_x,reg_weight,dropout,pos_row, pos_col,user_item_dict):
+    def __init__(self, features, edge_index, user_index_5, batch_size, num_user, num_item, aggr_mode, concate,
+                 num_layer, has_id, dim_x, reg_weight, dropout, pos_row, pos_col, user_item_dict):
         super(MMGCN, self).__init__()
         self.batch_size = batch_size
         self.num_user = num_user
@@ -163,7 +184,7 @@ class MMGCN(torch.nn.Module):
         self.reg_weight = reg_weight
         self.user_item_dict = user_item_dict
         self.pos_row = torch.LongTensor(pos_row)
-        self.pos_col = torch.LongTensor(pos_col)-num_user
+        self.pos_col = torch.LongTensor(pos_col) - num_user
         self.dropout = dropout
         self.v_rep = None
         self.a_rep = None
@@ -173,7 +194,7 @@ class MMGCN(torch.nn.Module):
         self.t_preference = None
         self.dim_latent = 64
         self.MLP = nn.Linear(self.dim_latent * 3, self.dim_latent)
-        
+        self.MLP2 = nn.Linear(self.dim_latent, self.dim_latent)
         self.edge_index = torch.tensor(edge_index).t().contiguous().to(device)
         # self.edge_index, _ = dropout_adj(edge_index, edge_attr=None, p=self.dropout)
         # self.edge_index = torch.cat((self.edge_index, self.edge_index[[1,0]]), dim=1)
@@ -183,39 +204,42 @@ class MMGCN(torch.nn.Module):
         self.a_feat = torch.tensor(a_feat, dtype=torch.float).to(device)
         self.t_feat = torch.tensor(t_feat, dtype=torch.float).to(device)
 
-        self.v_gcn = GCN_1(self.v_feat, batch_size, num_user, num_item, dim_x, self.aggr_mode, self.concate, num_layer=num_layer, has_id=has_id,dropout = self.dropout, dim_latent=64)#256)
-        self.a_gcn = GCN_1(self.a_feat, batch_size, num_user, num_item, dim_x, self.aggr_mode, self.concate, num_layer=num_layer, has_id=has_id,dropout = self.dropout, dim_latent=64)
-        self.t_gcn = GCN_1(self.t_feat, batch_size, num_user, num_item, dim_x, self.aggr_mode, self.concate, num_layer=num_layer, has_id=has_id,dropout = self.dropout, dim_latent=64)
-        self.user_graph = User_Graph(self.user_index_5,num_user,'add')
+        self.v_gcn = GCN_1(self.v_feat, batch_size, num_user, num_item, dim_x, self.aggr_mode, self.concate,
+                           num_layer=num_layer, has_id=has_id, dropout=self.dropout, dim_latent=64)  # 256)
+        self.a_gcn = GCN_1(self.a_feat, batch_size, num_user, num_item, dim_x, self.aggr_mode, self.concate,
+                           num_layer=num_layer, has_id=has_id, dropout=self.dropout, dim_latent=64)
+        self.t_gcn = GCN_1(self.t_feat, batch_size, num_user, num_item, dim_x, self.aggr_mode, self.concate,
+                           num_layer=num_layer, has_id=has_id, dropout=self.dropout, dim_latent=64)
+        self.user_graph = User_Graph(self.user_index_5, num_user, 'add')
 
-        self.id_embedding = nn.init.xavier_normal_(torch.rand((num_user+num_item, dim_x), requires_grad=True)).to(device)
-        self.result_embed = nn.Parameter(nn.init.xavier_normal_(torch.rand((num_user+num_item, dim_x)))).to(device)
-
+        self.id_embedding = nn.init.xavier_normal_(torch.rand((num_user + num_item, dim_x), requires_grad=True)).to(
+            device)
+        self.result_embed = nn.Parameter(nn.init.xavier_normal_(torch.rand((num_user + num_item, dim_x)))).to(device)
 
     def forward(self, user_nodes, pos_item_nodes, neg_item_nodes):
         edge_index, _ = dropout_adj(self.edge_index, edge_attr=None, p=self.dropout)
         edge_index = torch.cat((edge_index, edge_index[[1, 0]]), dim=1)
-        self.v_rep,self.v_preference = self.v_gcn(edge_index)
-        self.a_rep,self.a_preference = self.a_gcn(edge_index)
-        self.t_rep,self.t_preference = self.t_gcn(edge_index)
+        self.v_rep, self.v_preference = self.v_gcn(edge_index)
+        self.a_rep, self.a_preference = self.a_gcn(edge_index)
+        self.t_rep, self.t_preference = self.t_gcn(edge_index)
         # representation = (self.v_rep+self.a_rep+self.t_rep)/3
-        # representation = self.v_rep+self.a_rep+self.
+        # representation = self.v_rep+self.a_rep+self.t_rep
         representation = torch.cat((self.v_rep, self.a_rep, self.t_rep), dim=1)
-        representation = F.leaky_relu(MLP(representation))
+        representation = F.leaky_relu(self.MLP(representation))
+        # representation = F.leaky_relu(self.MLP2(representation_1))
         item_rep = representation[self.num_user:]
         user_rep = representation[:self.num_user]
         h_u1 = self.user_graph(user_rep)
         h_u2 = self.user_graph(h_u1)
-        user_rep = user_rep+h_u1+h_u2
-        self.result_embed = torch.cat((user_rep,item_rep),dim=0)
+        user_rep = user_rep + h_u1 + h_u2
+        self.result_embed = torch.cat((user_rep, item_rep), dim=0)
         # self.result_embed = representation
         user_tensor = self.result_embed[user_nodes]
         pos_item_tensor = self.result_embed[pos_item_nodes]
         neg_item_tensor = self.result_embed[neg_item_nodes]
-        pos_scores = torch.sum(user_tensor*pos_item_tensor, dim=1)
-        neg_scores = torch.sum(user_tensor*neg_item_tensor, dim=1)
+        pos_scores = torch.sum(user_tensor * pos_item_tensor, dim=1)
+        neg_scores = torch.sum(user_tensor * neg_item_tensor, dim=1)
         return pos_scores, neg_scores
-
 
     def loss(self, data):
         user, pos_items, neg_items = data
@@ -225,8 +249,8 @@ class MMGCN(torch.nn.Module):
         reg_embedding_loss_v = (self.v_preference[user.to(device)] ** 2).mean()
         reg_embedding_loss_a = (self.a_preference[user.to(device)] ** 2).mean()
         reg_embedding_loss_t = (self.t_preference[user.to(device)] ** 2).mean()
-        reg_loss = self.reg_weight * (reg_embedding_loss_v+reg_embedding_loss_a+reg_embedding_loss_t)
-        return loss_value+reg_loss,reg_loss
+        reg_loss = self.reg_weight * (reg_embedding_loss_v + reg_embedding_loss_a + reg_embedding_loss_t)
+        return loss_value + reg_loss, reg_loss
 
     def accuracy(self, step=2000, topk=10):
         user_tensor = self.result_embed[:self.num_user]
