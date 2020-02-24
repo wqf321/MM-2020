@@ -142,9 +142,9 @@ class GCN_1(torch.nn.Module):
         x = torch.cat((self.preference, temp_features), dim=0)
         x = F.normalize(x).to(device)
         h = self.conv_embed_1(x, edge_index)  # equation 1
-        h_1 = self.conv_embed_1(h, edge_index)
+        # h_1 = self.conv_embed_1(h, edge_index)
 
-        x_hat =h_1+ h + x
+        x_hat =h + x
         # x_hat = F.leaky_relu(self.linear_layer1(x)) + id_embedding if self.has_id else F.leaky_relu(self.linear_layer1(x))#equation 5
         # x = F.leaky_relu(self.g_layer1(torch.cat((h, x_hat), dim=1))) if self.concate else F.leaky_relu(self.g_layer1(h)+x_hat)
         #
@@ -222,11 +222,10 @@ class MMGCN(torch.nn.Module):
         self.v_rep, self.v_preference = self.v_gcn(edge_index)
         self.a_rep, self.a_preference = self.a_gcn(edge_index)
         self.t_rep, self.t_preference = self.t_gcn(edge_index)
-        # representation = (self.v_rep+self.a_rep+self.t_rep)/3
+        # representation = F.leaky_relu((self.v_rep+self.a_rep+self.t_rep))
         # representation = self.v_rep+self.a_rep+self.t_rep
         representation = torch.cat((self.v_rep, self.a_rep, self.t_rep), dim=1)
         representation = F.leaky_relu(self.MLP(representation))
-        # representation = F.leaky_relu(self.MLP2(representation_1))
         item_rep = representation[self.num_user:]
         user_rep = representation[:self.num_user]
         h_u1 = self.user_graph(user_rep)
@@ -246,10 +245,11 @@ class MMGCN(torch.nn.Module):
         pos_scores, neg_scores = self.forward(user.to(device), pos_items.to(device), neg_items.to(device))
         loss_value = -torch.mean(torch.log2(torch.sigmoid(pos_scores - neg_scores)))
         # reg_embedding_loss = (self.result_embed[user] ** 2).mean()
+        reg_MLP = (self.MLP.weight ** 2).mean()
         reg_embedding_loss_v = (self.v_preference[user.to(device)] ** 2).mean()
         reg_embedding_loss_a = (self.a_preference[user.to(device)] ** 2).mean()
         reg_embedding_loss_t = (self.t_preference[user.to(device)] ** 2).mean()
-        reg_loss = self.reg_weight * (reg_embedding_loss_v + reg_embedding_loss_a + reg_embedding_loss_t)
+        reg_loss = self.reg_weight * (reg_embedding_loss_v + reg_embedding_loss_a + reg_embedding_loss_t+reg_MLP)
         return loss_value + reg_loss, reg_loss
 
     def accuracy(self, step=2000, topk=10):
