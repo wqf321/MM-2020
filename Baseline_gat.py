@@ -15,23 +15,22 @@ class GAT(torch.nn.Module):
     def __init__(self,edge_index,dim_id,num_user,num_item,weight_decay,dropout ,user_item_dict):
         super(GAT, self).__init__()
         self.conv1 = GATConv(dim_id,dim_id,heads=3,concat=False)
-        self.conv2 = GATConv(dim_id,dim_id,heads=3,concat=False)
+        # self.conv2 = GATConv(dim_id,dim_id,heads=3,concat=False)
         self.dropout =dropout
         self.num_user = num_user
         self.num_item = num_item
         self.user_item_dict = user_item_dict
         self.reg_weight = weight_decay
-        self.id_embedding = nn.init.xavier_normal_(torch.rand((num_user + num_item, dim_id), requires_grad=True)).to(
-            device)
-        self.result_embed = nn.Parameter(nn.init.xavier_normal_(torch.rand((num_user + num_item, dim_id)))).to(device)
-        self.edge_index = torch.tensor(edge_index).t().contiguous().to(device)
+        self.id_embedding = nn.init.xavier_normal_(torch.rand((num_user + num_item, dim_id), requires_grad=True)).cuda()
+        self.result_embed = nn.Parameter(nn.init.xavier_normal_(torch.rand((num_user + num_item, dim_id)))).cuda()
+        self.edge_index = torch.tensor(edge_index).t().contiguous().cuda()
 
     def forward(self,user_nodes,pos_item_nodes,neg_item_nodes):
         edge_index, _ = dropout_adj(self.edge_index, edge_attr=None, p=self.dropout)
         edge_index = torch.cat((edge_index, edge_index[[1, 0]]), dim=1)
 
         x = F.leaky_relu(self.conv1(self.id_embedding,edge_index))
-        x = F.leaky_relu(self.conv2(x,edge_index))
+        # x = F.leaky_relu(self.conv2(x,edge_index))
 
         self.result_embed = x
         # self.result_embed = representation
@@ -45,13 +44,13 @@ class GAT(torch.nn.Module):
 
     def loss(self, data):
         user, pos_items, neg_items = data
-        pos_scores, neg_scores = self.forward(user.to(device), pos_items.to(device), neg_items.to(device))
+        pos_scores, neg_scores = self.forward(user.cuda(), pos_items.cuda(), neg_items.cuda())
         loss_value = -torch.mean(torch.log2(torch.sigmoid(pos_scores - neg_scores)))
         # reg_embedding_loss = (self.result_embed[user] ** 2).mean()
         # reg_MLP = (self.MLP.weight ** 2).mean()
-        reg_embedding_u = (self.id_embedding[user.to(device)] ** 2).mean()
-        reg_embedding_pos = (self.id_embedding[pos_items.to(device)] ** 2).mean()
-        reg_embedding_neg = (self.id_embedding[neg_items.to(device)] ** 2).mean()
+        reg_embedding_u = (self.id_embedding[user.cuda()] ** 2).mean()
+        reg_embedding_pos = (self.id_embedding[pos_items.cuda()] ** 2).mean()
+        reg_embedding_neg = (self.id_embedding[neg_items.cuda()] ** 2).mean()
         reg_loss = self.reg_weight * (reg_embedding_u+reg_embedding_neg+reg_embedding_pos)
         return loss_value + reg_loss, reg_loss
 
@@ -86,6 +85,9 @@ class GAT(torch.nn.Module):
             pos_items = set(col)
             # print(pos_items)
             num_pos = len(pos_items)
+            if num_pos ==0:
+                length = length-1
+                continue
             items_list = all_index_of_rank_list[user].tolist()
 
             items = set(items_list)
@@ -147,6 +149,9 @@ class GAT(torch.nn.Module):
             pos_items = set(data[1:])
             # print(pos_items)
             num_pos = len(pos_items)
+            if num_pos ==0:
+                length = length-1
+                continue
             items_list = all_index_of_rank_list[user].tolist()
 
             items = set(items_list)

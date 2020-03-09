@@ -103,12 +103,12 @@ class Net:
         self.train_dataset = MyDataset('./Data/', self.num_user, self.num_item)
         self.train_dataloader = DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True, num_workers=self.num_workers)
         self.edge_index = np.load('./Data/train.npy')
-        self.user_index_5 = np.load('./Data/edge_adj_12.npy')
+        #self.user_index_5 = np.load('./Data/edge_adj_12.npy')
         self.val_dataset = np.load('./Data/val_full.npy')
         self.test_dataset = np.load('./Data/test_full.npy')
-        self.v_feat = np.load('./Data/FeatureVideo_normal.npy')
-        self.a_feat = np.load('./Data/FeatureAudio_avg_normal.npy')
-        self.t_feat = np.load('./Data/FeatureText_stl_normal.npy')
+        #self.v_feat = np.load('./Data/FeatureVideo_normal.npy')
+        #self.a_feat = np.load('./Data/FeatureAudio_avg_normal.npy')
+        #self.t_feat = np.load('./Data/FeatureText_stl_normal.npy')
         user_item_dict = np.load('./Data/user_item_dict.npy', allow_pickle=True).item()
         pos_row = []
         pos_col = []
@@ -124,7 +124,7 @@ class Net:
             self.model = MMGCN(self.features, self.edge_index, self.user_index_5,self.batch_size, self.num_user, self.num_item, self.aggr_mode, self.concat, self.num_layer, self.has_id, self.dim_latent,self.weight_decay,self.dropout ,pos_row, pos_col, user_item_dict).to(self.device)
 
         elif self.model_name =='GAT':
-            self.model = GAT(self.edge_index,self.dim_latent,self.num_user,self.num_item,self.weight_decay,self.dropout , user_item_dict).to(self.device)
+            self.model = GAT(self.edge_index,self.dim_latent,self.num_user,self.num_item,self.weight_decay,self.dropout , user_item_dict).cuda()
         if args.PATH_weight_load and os.path.exists(args.PATH_weight_load):
             self.model.load_state_dict(torch.load(args.PATH_weight_load))
             print('module weights loaded....')
@@ -188,7 +188,7 @@ class Net:
                 max_NDCG = test_ndcg
                 num_decreases = 0
             else:
-                if num_decreases > 20:
+                if num_decreases > 10:
                     with open('./Data/result_{0}_{1}_{2}.txt'.format(args.l_r,args.weight_decay,args.dropout), 'a') as save_file:
                         save_file.write(
                             'lr: {0} \t Weight_decay:{1} \t dropput:{2}=====> Precision:{3} \t Recall:{4} \t NDCG:{5}\r\n'.
@@ -239,8 +239,8 @@ if __name__ == '__main__':
     parser.add_argument('--dim_latent', type=int, default=64, help='Latent dimension.')
     parser.add_argument('--num_epoch', type=int, default=200, help='Epoch number.')
     parser.add_argument('--num_workers', type=int, default=1, help='Workers number.')
-    parser.add_argument('--num_user', type=int, default=55485, help='User number.')
-    parser.add_argument('--num_item', type=int, default=5986, help='Item number.')
+    parser.add_argument('--num_user', type=int, default=36656, help='User number.')
+    parser.add_argument('--num_item', type=int, default=76085, help='Item number.')
     parser.add_argument('--aggr_mode', default='add', help='Aggregation mode.')
     parser.add_argument('--concat', type=bool, default=True, help='Concatenation')
     parser.add_argument('--num_layer', type=int, default=1, help='Layer number.')
